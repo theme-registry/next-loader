@@ -28,28 +28,32 @@ await buildAllThemes({
 
 ## Integrate with `next.config.*`
 
-Start the toolkit watcher automatically whenever `next dev` (Webpack or Turbopack) runs by wrapping your Next config with `withThemeRegistry`:
+`withThemeRegistry` loads `theme-registry.config.*` (or the inline overrides you pass), starts `@theme-registry/toolkit`'s watch mode once, and keeps it alive until Next.js shuts down. By default the watcher only runs when `NODE_ENV !== 'production'`; override via `enabled: true | false` for preview builds.
+
+### Example `next.config.cjs`
+
+One pattern works for both CommonJS configs and `next.config.ts` files (when `require` is allowed). Reuse the same `nextConfig` and `registryOptions` so you can share the values in either format:
 
 ```js
-// next.config.cjs
-let withThemeRegistry = (config => config)
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactCompiler: true
+}
+
+const registryOptions = {
+  config: './theme-registry.config.cjs',
+  nextLoaderOptions: { ssr: false }
+}
+
+let withThemeRegistry = (options, config) => config
 try {
   ({ withThemeRegistry } = require('@theme-registry/next-loader'))
 } catch (error) {
   if (process.env.NODE_ENV !== 'production') {
-    console.warn('Theme registry integration skipped:', error.message)
+    const message = error instanceof Error ? error.message : String(error)
+    console.warn('Theme registry watcher skipped:', message)
   }
 }
 
-module.exports = withThemeRegistry(
-  {
-    config: './theme-registry.config.cjs',
-    nextLoaderOptions: { ssr: false }
-  },
-  {
-    reactStrictMode: true
-  }
-)
+module.exports = withThemeRegistry(registryOptions, nextConfig)
 ```
-
-`withThemeRegistry` loads the shared `theme-registry.config.*` (or uses the inline `themesDir`/`loader` you provide), starts `@theme-registry/toolkit`'s watch mode once, and keeps it alive until Next.js shuts down. By default it only runs when `NODE_ENV !== 'production'`; override via `enabled: true | false` when needed (for example, to run the watcher during preview deployments).
